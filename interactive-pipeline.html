@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV → Cleaned Dataset Pipeline — interactive diagram</title>
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --panel: #151517;
+    --border: #2a2a2e;
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+    --accent: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 20px 28px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 {
+    font-size: 17px;
+    margin: 0;
+    font-weight: 600;
+  }
+  header p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  #controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: #4b5563; }
+  #stage {
+    position: relative;
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+  }
+  svg { width: 100%; height: auto; min-width: 1100px; display: block; }
+  .node { cursor: pointer; }
+  .node .node-box { transition: filter .15s, transform .15s, stroke-width .15s; transform-origin: center; transform-box: fill-box; }
+  .node:hover .node-box, .node.active .node-box {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 10px rgba(34,197,94,.35));
+  }
+  .node.dimmed { opacity: .35; }
+  .edge.dimmed, .flow-dot.dimmed { opacity: .12; }
+  #panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 340px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 22px;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    overflow-y: auto;
+  }
+  #panel.open { transform: translateX(0); }
+  #panel h2 { font-size: 16px; margin: 0 0 4px; }
+  #panel .kicker { color: var(--accent); font-size: 11.5px; letter-spacing: .02em; margin-bottom: 14px; }
+  #panel p { color: #d1d5db; font-size: 13.5px; line-height: 1.55; }
+  #panel .close { position: absolute; top: 18px; right: 18px; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0; }
+  footer {
+    padding: 10px 28px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>CSV → Cleaned Dataset Pipeline</h1>
+    <p>Hover a node to trace its connections · click a node for details</p>
+  </div>
+  <div id="controls">
+    <button id="toggleAnim">Pause flow</button>
+  </div>
+</header>
+
+<div id="stage">
+<svg viewBox="0 0 1680 820" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+<defs>
+  <pattern id="dotgrid" width="22" height="22" patternUnits="userSpaceOnUse">
+    <circle cx="1.2" cy="1.2" r="1.2" fill="#2a2a2e"/>
+  </pattern>
+  <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
+  </filter>
+  <style>
+    .edge { stroke: #4b5563; stroke-width: 2; fill: none; }
+    .edge-true { stroke: #22c55e; }
+    .edge-false { stroke: #6b7280; stroke-dasharray: 4 4; }
+    .node-box { stroke-width: 2; rx: 12; ry: 12; filter: url(#soft); transition: all .2s; }
+    .node-label { fill: #f3f4f6; font-size: 15px; font-weight: 600; }
+    .node-sub { fill: #9ca3af; font-size: 11.5px; }
+    .icon-chip { rx: 8; ry: 8; }
+    .flow-dot { filter: drop-shadow(0 0 4px currentColor); }
+  </style>
+</defs>
+<rect x="0" y="0" width="1680" height="820" fill="#0c0c0e"/>
+<rect x="0" y="0" width="1680" height="820" fill="url(#dotgrid)"/>
+
+<path id="path-gmail_trigger-parse_csv" d="M 184.0 360.0 C 224.0 360.0, 216.0 360.0, 256.0 360.0" class="edge"/>
+<path id="path-parse_csv-clean_validate" d="M 424.0 360.0 C 464.0 360.0, 456.0 360.0, 496.0 360.0" class="edge"/>
+<path id="path-clean_validate-has_valid" d="M 664.0 360.0 C 704.0 360.0, 696.0 360.0, 736.0 360.0" class="edge"/>
+<path id="path-has_valid-load_postgres" d="M 904.0 360.0 C 950.0 360.0, 950.0 150.0, 996.0 150.0" class="edge edge-true"/>
+<path id="path-has_valid-prepare_cols" d="M 904.0 360.0 C 950.0 360.0, 950.0 360.0, 996.0 360.0" class="edge edge-true"/>
+<path id="path-has_valid-load_sheets" d="M 904.0 360.0 C 950.0 360.0, 950.0 570.0, 996.0 570.0" class="edge edge-true"/>
+<path id="path-has_valid-send_alert" d="M 904.0 360.0 C 950.0 360.0, 950.0 740.0, 996.0 740.0" class="edge edge-false"/>
+<path id="path-prepare_cols-convert_csv" d="M 1164.0 360.0 C 1205.0 360.0, 1205.0 360.0, 1246.0 360.0" class="edge"/>
+<path id="path-convert_csv-send_ok" d="M 1414.0 360.0 C 1455.0 360.0, 1455.0 360.0, 1496.0 360.0" class="edge"/>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="0.00s; loopgmail_triggerparse_csv.end+2.50s" repeatCount="1" fill="freeze" id="loopgmail_triggerparse_csv">
+    <mpath xlink:href="#path-gmail_trigger-parse_csv"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="0.00s; loopgmail_triggerparse_csv.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="0.50s; loopparse_csvclean_validate.end+2.50s" repeatCount="1" fill="freeze" id="loopparse_csvclean_validate">
+    <mpath xlink:href="#path-parse_csv-clean_validate"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="0.50s; loopparse_csvclean_validate.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="1.00s; loopclean_validatehas_valid.end+2.50s" repeatCount="1" fill="freeze" id="loopclean_validatehas_valid">
+    <mpath xlink:href="#path-clean_validate-has_valid"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="1.00s; loopclean_validatehas_valid.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="1.50s; loophas_validload_postgres.end+2.50s" repeatCount="1" fill="freeze" id="loophas_validload_postgres">
+    <mpath xlink:href="#path-has_valid-load_postgres"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="1.50s; loophas_validload_postgres.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="1.60s; loophas_validprepare_cols.end+2.50s" repeatCount="1" fill="freeze" id="loophas_validprepare_cols">
+    <mpath xlink:href="#path-has_valid-prepare_cols"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="1.60s; loophas_validprepare_cols.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="1.70s; loophas_validload_sheets.end+2.50s" repeatCount="1" fill="freeze" id="loophas_validload_sheets">
+    <mpath xlink:href="#path-has_valid-load_sheets"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="1.70s; loophas_validload_sheets.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#9ca3af" class="flow-dot" style="color:#9ca3af">
+  <animateMotion dur="1.1s" begin="1.50s; loophas_validsend_alert.end+2.50s" repeatCount="1" fill="freeze" id="loophas_validsend_alert">
+    <mpath xlink:href="#path-has_valid-send_alert"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="1.50s; loophas_validsend_alert.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="2.20s; loopprepare_colsconvert_csv.end+2.50s" repeatCount="1" fill="freeze" id="loopprepare_colsconvert_csv">
+    <mpath xlink:href="#path-prepare_cols-convert_csv"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="2.20s; loopprepare_colsconvert_csv.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<circle r="4.5" fill="#22c55e" class="flow-dot" style="color:#22c55e">
+  <animateMotion dur="1.1s" begin="2.70s; loopconvert_csvsend_ok.end+2.50s" repeatCount="1" fill="freeze" id="loopconvert_csvsend_ok">
+    <mpath xlink:href="#path-convert_csv-send_ok"/>
+  </animateMotion>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" dur="1.1s" begin="2.70s; loopconvert_csvsend_ok.end+2.50s" repeatCount="1" fill="freeze"/>
+</circle>
+<g class="node" data-node="gmail_trigger">
+  <rect class="node-box" x="16.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#EA4335"/>
+  <rect class="icon-chip" x="28.0" y="344.0" width="32" height="32" fill="#EA4335"/>
+  <g transform="translate(44.0,360.0)"><rect x="-14" y="-10" width="28" height="20" rx="3" fill="white"/>
+        <path d="M-14 -10 L0 2 L14 -10" stroke="#EA4335" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/></g>
+  <text class="node-label" x="72.0" y="356.0">Gmail Trigger</text>
+  <text class="node-sub" x="72.0" y="374.0">poll: every minute</text>
+</g>
+<g class="node" data-node="parse_csv">
+  <rect class="node-box" x="256.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#3B82F6"/>
+  <rect class="icon-chip" x="268.0" y="344.0" width="32" height="32" fill="#3B82F6"/>
+  <g transform="translate(284.0,360.0)"><rect x="-13" y="-13" width="26" height="26" rx="3" fill="white" opacity="0.15"/>
+        <g stroke="white" stroke-width="1.6">
+          <line x1="-13" y1="-4.3" x2="13" y2="-4.3"/>
+          <line x1="-13" y1="4.3" x2="13" y2="4.3"/>
+          <line x1="-4.3" y1="-13" x2="-4.3" y2="13"/>
+          <line x1="4.3" y1="-13" x2="4.3" y2="13"/>
+        </g>
+        <rect x="-13" y="-13" width="26" height="26" rx="3" fill="none" stroke="white" stroke-width="1.6"/></g>
+  <text class="node-label" x="312.0" y="356.0">Parse CSV to JSON</text>
+  <text class="node-sub" x="312.0" y="374.0">read attachment</text>
+</g>
+<g class="node" data-node="clean_validate">
+  <rect class="node-box" x="496.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#4B5563"/>
+  <rect class="icon-chip" x="508.0" y="344.0" width="32" height="32" fill="#111111"/>
+  <g transform="translate(524.0,360.0)"><text x="0" y="8" font-size="26" font-family="monospace" fill="white" text-anchor="middle">{ }</text></g>
+  <text class="node-label" x="552.0" y="356.0">Clean &amp; Validate Data</text>
+  <text class="node-sub" x="552.0" y="374.0">python — code node</text>
+</g>
+<g class="node" data-node="has_valid">
+  <rect class="node-box" x="736.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#374151"/>
+  <rect class="icon-chip" x="748.0" y="344.0" width="32" height="32" fill="#374151"/>
+  <g transform="translate(764.0,360.0)"><circle cx="-11" cy="0" r="3" fill="white"/>
+        <circle cx="11" cy="-9" r="3" fill="white"/>
+        <circle cx="11" cy="9" r="3" fill="white"/>
+        <path d="M-11 0 C -2 0, -2 -9, 8 -9" stroke="white" stroke-width="2" fill="none"/>
+        <path d="M-11 0 C -2 0, -2 9, 8 9" stroke="white" stroke-width="2" fill="none"/></g>
+  <text class="node-label" x="792.0" y="356.0">Has Valid Rows?</text>
+  <text class="node-sub" x="792.0" y="374.0">if</text>
+</g>
+<g class="node" data-node="load_postgres">
+  <rect class="node-box" x="996.0" y="113.0" width="168" height="74" fill="#18181b" stroke="#336791"/>
+  <rect class="icon-chip" x="1008.0" y="134.0" width="32" height="32" fill="#336791"/>
+  <g transform="translate(1024.0,150.0)"><g stroke="white" stroke-width="1.8" fill="none">
+          <ellipse cx="0" cy="-9" rx="13" ry="5"/>
+          <path d="M-13 -9 L-13 9 C-13 12, 13 12, 13 9 L13 -9"/>
+          <path d="M-13 0 C-13 3, 13 3, 13 0" />
+        </g></g>
+  <text class="node-label" x="1052.0" y="146.0">Load to Postgres</text>
+  <text class="node-sub" x="1052.0" y="164.0">upsert · order_id</text>
+</g>
+<g class="node" data-node="prepare_cols">
+  <rect class="node-box" x="996.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#7C3AED"/>
+  <rect class="icon-chip" x="1008.0" y="344.0" width="32" height="32" fill="#7C3AED"/>
+  <g transform="translate(1024.0,360.0)"><path d="M-9 9 L7 -7 L11 -3 L-5 13 Z" fill="white"/>
+        <path d="M7 -7 L10 -10 L14 -6 L11 -3 Z" fill="white" opacity="0.7"/></g>
+  <text class="node-label" x="1052.0" y="356.0">Prepare CSV Columns</text>
+  <text class="node-sub" x="1052.0" y="374.0">set</text>
+</g>
+<g class="node" data-node="load_sheets">
+  <rect class="node-box" x="996.0" y="533.0" width="168" height="74" fill="#18181b" stroke="#0F9D58"/>
+  <rect class="icon-chip" x="1008.0" y="554.0" width="32" height="32" fill="#0F9D58"/>
+  <g transform="translate(1024.0,570.0)"><rect x="-12" y="-13" width="24" height="26" rx="2" fill="white" opacity="0.15" stroke="white" stroke-width="1.6"/>
+        <line x1="-12" y1="-4" x2="12" y2="-4" stroke="white" stroke-width="1.4"/>
+        <line x1="-12" y1="5" x2="12" y2="5" stroke="white" stroke-width="1.4"/>
+        <line x1="0" y1="-13" x2="0" y2="13" stroke="white" stroke-width="1.4"/></g>
+  <text class="node-label" x="1052.0" y="566.0">Load to Google Sheets</text>
+  <text class="node-sub" x="1052.0" y="584.0">append</text>
+</g>
+<g class="node" data-node="convert_csv">
+  <rect class="node-box" x="1246.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#7C3AED"/>
+  <rect class="icon-chip" x="1258.0" y="344.0" width="32" height="32" fill="#7C3AED"/>
+  <g transform="translate(1274.0,360.0)"><path d="M-11 -6 L4 -6 L4 -11 L13 0 L4 11 L4 6 L-11 6 Z" fill="white"/></g>
+  <text class="node-label" x="1302.0" y="356.0">Convert to CSV</text>
+  <text class="node-sub" x="1302.0" y="374.0">binary file</text>
+</g>
+<g class="node" data-node="send_ok">
+  <rect class="node-box" x="1496.0" y="323.0" width="168" height="74" fill="#18181b" stroke="#EA4335"/>
+  <rect class="icon-chip" x="1508.0" y="344.0" width="32" height="32" fill="#EA4335"/>
+  <g transform="translate(1524.0,360.0)"><rect x="-14" y="-10" width="28" height="20" rx="3" fill="white"/>
+        <path d="M-14 -10 L0 2 L14 -10" stroke="#EA4335" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/></g>
+  <text class="node-label" x="1552.0" y="356.0">Send confirmation</text>
+  <text class="node-sub" x="1552.0" y="374.0">gmail · with attachment</text>
+</g>
+<g class="node" data-node="send_alert">
+  <rect class="node-box" x="996.0" y="703.0" width="168" height="74" fill="#18181b" stroke="#EA4335"/>
+  <rect class="icon-chip" x="1008.0" y="724.0" width="32" height="32" fill="#EA4335"/>
+  <g transform="translate(1024.0,740.0)"><rect x="-14" y="-10" width="28" height="20" rx="3" fill="white"/>
+        <path d="M-14 -10 L0 2 L14 -10" stroke="#EA4335" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/></g>
+  <text class="node-label" x="1052.0" y="736.0">Send alert</text>
+  <text class="node-sub" x="1052.0" y="754.0">0 valid rows</text>
+</g>
+</svg>
+</div>
+
+<div id="panel">
+  <button class="close" id="closePanel" aria-label="Close">&times;</button>
+  <div class="kicker">NODE</div>
+  <h2 id="panelTitle"></h2>
+  <p id="panelBody"></p>
+</div>
+
+<footer>n8n workflow · Gmail → Python cleaning → Postgres + Google Sheets → confirmation / alert email</footer>
+
+<script>
+const details = {
+  "gmail_trigger": {
+    "title": "Gmail Trigger",
+    "body": "Polls the inbox every minute for messages matching has:attachment filename:csv, and downloads the CSV automatically."
+  },
+  "parse_csv": {
+    "title": "Parse CSV to JSON",
+    "body": "Reads the CSV attachment into JSON rows, using the header row as field names."
+  },
+  "clean_validate": {
+    "title": "Clean &amp; Validate Data",
+    "body": "A native Python code node with no network access. Type-casts order_id, customer_name, delivery_date (4 formats tried), amount (currency symbols stripped) and status (lowercased). Rejects rows with a missing ID, unparseable date, or invalid amount &mdash; tagging each with why. Deduplicates the valid rows by order_id, keeping whichever has the most recent delivery_date."
+  },
+  "has_valid": {
+    "title": "Has Valid Rows?",
+    "body": "Branches the run on whether anything survived cleaning, so the pipeline never silently loads zero rows without telling anyone."
+  },
+  "load_postgres": {
+    "title": "Load to Postgres",
+    "body": "Upserts cleaned rows into Supabase's deliveries_clean table, matching on order_id &mdash; idempotent, so re-running on the same file updates rather than duplicates."
+  },
+  "prepare_cols": {
+    "title": "Prepare CSV Columns",
+    "body": "Maps each cleaned field onto a flat column set, ready to be written back out as a file."
+  },
+  "load_sheets": {
+    "title": "Load to Google Sheets",
+    "body": "Appends cleaned rows to the Cleaned Data tab. Runs in parallel with the Postgres branch, so one destination failing doesn't block the other."
+  },
+  "convert_csv": {
+    "title": "Convert to CSV",
+    "body": "Converts the cleaned rows back into a binary cleaned_deliveries.csv file."
+  },
+  "send_ok": {
+    "title": "Send confirmation",
+    "body": "Emails a confirmation once Postgres and Sheets have both been written, with the cleaned CSV attached."
+  },
+  "send_alert": {
+    "title": "Send alert",
+    "body": "If zero rows survive cleaning, sends an alert email instead &mdash; listing every rejected row and its rejection reason (missing_id / invalid_date / invalid_amount)."
+  }
+};
+
+const svgEl = document.querySelector('#stage svg');
+const nodes = [...document.querySelectorAll('.node')];
+const edges = [...document.querySelectorAll('.edge')];
+const dots = [...document.querySelectorAll('.flow-dot')];
+const panel = document.getElementById('panel');
+const panelTitle = document.getElementById('panelTitle');
+const panelBody = document.getElementById('panelBody');
+
+// Build adjacency from edge ids: "path-<a>-<b>"
+function neighborsOf(key) {
+  const involved = new Set();
+  edges.forEach(e => {
+    const id = e.id || '';
+    const rest = id.replace('path-', '');
+    const parts = Object.keys(details);
+    // find split point: try each node name as prefix
+    for (const a of parts) {
+      if (rest.startsWith(a + '-')) {
+        const b = rest.slice(a.length + 1);
+        if (a === key || b === key) {
+          involved.add(a); involved.add(b);
+          e.dataset.a = a; e.dataset.b = b;
+        }
+      }
+    }
+  });
+  return involved;
+}
+
+nodes.forEach(n => {
+  const key = n.dataset.node;
+  n.addEventListener('mouseenter', () => highlight(key));
+  n.addEventListener('mouseleave', () => clearHighlight());
+  n.addEventListener('click', () => openPanel(key));
+});
+
+function highlight(key) {
+  const involved = neighborsOf(key);
+  nodes.forEach(n => n.classList.toggle('dimmed', !involved.has(n.dataset.node)));
+  edges.forEach((e, i) => {
+    const id = (e.id || '').replace('path-', '');
+    const on = involved.size && (id.startsWith(key + '-') || id.endsWith('-' + key));
+    e.classList.toggle('dimmed', !on);
+    if (dots[i]) dots[i].classList.toggle('dimmed', !on);
+  });
+}
+
+function clearHighlight() {
+  nodes.forEach(n => n.classList.remove('dimmed'));
+  edges.forEach(e => e.classList.remove('dimmed'));
+  dots.forEach(d => d.classList.remove('dimmed'));
+}
+
+function openPanel(key) {
+  const d = details[key];
+  if (!d) return;
+  nodes.forEach(n => n.classList.toggle('active', n.dataset.node === key));
+  panelTitle.innerHTML = d.title;
+  panelBody.innerHTML = d.body;
+  panel.classList.add('open');
+}
+
+document.getElementById('closePanel').addEventListener('click', () => {
+  panel.classList.remove('open');
+  nodes.forEach(n => n.classList.remove('active'));
+});
+
+let playing = true;
+document.getElementById('toggleAnim').addEventListener('click', (e) => {
+  if (!svgEl.pauseAnimations) return;
+  playing = !playing;
+  if (playing) { svgEl.unpauseAnimations(); e.target.textContent = 'Pause flow'; }
+  else { svgEl.pauseAnimations(); e.target.textContent = 'Resume flow'; }
+});
+</script>
+
+</body>
+</html>
