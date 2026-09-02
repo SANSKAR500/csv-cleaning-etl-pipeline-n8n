@@ -9,7 +9,7 @@ Built as a hands-on demonstration of ETL fundamentals: extraction, validation, t
 ## Architecture
 
 <p align="center">
-  <img src="assets/pipeline-animated.svg" alt="Animated diagram of the CSV cleaning pipeline: Gmail Trigger to Parse CSV to Clean and Validate Data to Has Valid Rows, branching to Postgres, Google Sheets, CSV export and confirmation email, or an alert email" width="100%">
+  <img src="pipeline-animated.svg" alt="Animated diagram of the CSV cleaning pipeline: Gmail Trigger to Parse CSV to Clean and Validate Data to Has Valid Rows, branching to Postgres, Google Sheets, CSV export and confirmation email, or an alert email" width="100%">
 </p>
 
 <p align="center"><em>Diagram is live — the dots trace each item as it moves through the workflow.</em><br>
