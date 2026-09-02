@@ -1,0 +1,473 @@
+{
+  "name": "CSV \u2192 Cleaned Dataset Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "binaryPropertyName": "attachment_0",
+        "fileFormat": "csv",
+        "options": {
+          "headerRow": true
+        }
+      },
+      "id": "1437735b-2f31-4744-ba56-250d734d0c04",
+      "name": "Parse CSV to JSON",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [
+        -3760,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nfrom datetime import datetime\n\n# Input: all incoming items\nrows = [item.json for item in _input.all()]\n\ndef parse_date(value):\n    if not value:\n        return None\n    for fmt in (\"%Y-%m-%d\", \"%m/%d/%Y\", \"%d-%m-%Y\", \"%Y/%m/%d\"):\n        try:\n            return datetime.strptime(str(value), fmt)\n        except ValueError:\n            continue\n    return None\n\n# --- 1. Type casting ---\ncasted = []\nfor row in rows:\n    order_id = str(row.get('order_id') or '').strip()\n    customer_name = str(row.get('customer_name') or '').strip()\n    delivery_date = parse_date(row.get('delivery_date'))\n\n    amount_raw = row.get('amount')\n    amount = None\n    if amount_raw not in (None, ''):\n        cleaned_amount = ''.join(c for c in str(amount_raw) if c.isdigit() or c in '.-')\n        try:\n            amount = float(cleaned_amount) if cleaned_amount not in ('', '-', '.') else None\n        except ValueError:\n            amount = None\n\n    status = str(row.get('status') or '').strip().lower()\n\n    casted.append({\n        'order_id': order_id,\n        'customer_name': customer_name,\n        'delivery_date': delivery_date,\n        'amount': amount,\n        'status': status,\n    })\n\n# --- 2. Split valid vs invalid rows ---\nvalid = []\nrejected = []\nfor row in casted:\n    valid_id = row['order_id'] != ''\n    valid_date = row['delivery_date'] is not None\n    valid_amount = row['amount'] is not None\n    if valid_id and valid_date and valid_amount:\n        valid.append(row)\n    else:\n        reason = 'missing_id' if not valid_id else ('invalid_date' if not valid_date else 'invalid_amount')\n        rejected_row = dict(row)\n        rejected_row['delivery_date'] = row['delivery_date'].strftime('%Y-%m-%d') if row['delivery_date'] else None\n        rejected_row['reason'] = reason\n        rejected.append(rejected_row)\n\n# --- 3. Deduplicate valid rows (by order_id, keep latest delivery_date) ---\ndedup_map = {}\nfor row in valid:\n    existing = dedup_map.get(row['order_id'])\n    if not existing or row['delivery_date'] > existing['delivery_date']:\n        dedup_map[row['order_id']] = row\n\ndeduped = list(dedup_map.values())\n\n# --- 4. Add pipeline metadata ---\nwith_meta = []\nfor row in deduped:\n    new_row = dict(row)\n    new_row['delivery_date'] = row['delivery_date'].strftime('%Y-%m-%d')\n    new_row['ingested_at'] = datetime.utcnow().isoformat()\n    new_row['_rejected_count'] = len(rejected)\n    with_meta.append(new_row)\n\nif with_meta:\n    with_meta[0]['_rejected_rows'] = json.dumps(rejected)\n    return [{'json': row} for row in with_meta]\nelse:\n    return [{'json': {'_rejected_count': len(rejected), '_rejected_rows': json.dumps(rejected), '_empty_result': True}}]\n"
+      },
+      "id": "63f93753-8617-435a-8829-bac61f48b819",
+      "name": "Clean & Validate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3520,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json._empty_result }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "188df9c4-4b08-440e-879a-ee1460dc7120",
+      "name": "Has Valid Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "cachedResultName": "public",
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "cachedResultName": "deliveries_clean",
+          "mode": "list",
+          "value": "deliveries_clean"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "amount": "={{ $json.amount }}",
+            "customer_name": "={{ $json.customer_name }}",
+            "delivery_date": "={{ $json.delivery_date }}",
+            "ingested_at": "={{ $json.ingested_at }}",
+            "order_id": "={{ $json.order_id }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "order_id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0e27b24-2361-439a-a020-49fbe2daccbf",
+      "name": "Load to Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3024,
+        976
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_POSTGRES_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Cleaned Data"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "customer_name": "={{ $json.customer_name }}",
+            "delivery_date": "={{ $json.delivery_date }}",
+            "amount": "={{ $json.amount }}",
+            "status": "={{ $json.status }}",
+            "ingested_at": "={{ $json.ingested_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "order_id",
+              "id": "order_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "customer_name",
+              "id": "customer_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "delivery_date",
+              "id": "delivery_date",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "amount",
+              "id": "amount",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "ingested_at",
+              "id": "ingested_at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "60662381-82fe-4309-95f3-7442d387fdd8",
+      "name": "Load to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -3024,
+        1296
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLESHEETSOAUTH2API_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@example.com",
+        "subject": "CSV Pipeline: 0 valid rows after cleaning",
+        "message": "=The CSV cleaning pipeline ran but found no valid rows.\n\nRejected row count: {{ $json._rejected_count }}\nRejected rows (with reasons):\n{{ $json._rejected_rows }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -3008,
+        1456
+      ],
+      "id": "ea67e211-5e37-48cc-acef-240911ce5fa5",
+      "name": "Send a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GMAILOAUTH2_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@example.com",
+        "subject": "=CSV Pipeline: Load complete ({{ $json.order_id ? 1 : $json.length }} rows)",
+        "message": "CSV cleaning pipeline completed successfully. Cleaned rows have been loaded into Postgres and Google Sheets \u2014 check the Executions tab in n8n or the deliveries_clean table / Cleaned Data sheet for details.",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2720,
+        1120
+      ],
+      "id": "7b6efce0-ae3f-43cd-b64b-de1835f249bd",
+      "name": "Send a message1",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GMAILOAUTH2_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:csv"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -4208,
+        1104
+      ],
+      "id": "92f374bf-b642-4555-929e-9d5afb24fdb0",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_GMAILOAUTH2_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "cleaned_deliveries.csv",
+          "headerRow": true
+        }
+      },
+      "id": "e40974ff-a5cb-46bb-a752-4d76fb303a27",
+      "name": "Convert Cleaned Data to CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -2896,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "order_id",
+              "type": "string",
+              "value": "={{ $json.order_id }}"
+            },
+            {
+              "id": "a2",
+              "name": "customer_name",
+              "type": "string",
+              "value": "={{ $json.customer_name }}"
+            },
+            {
+              "id": "a3",
+              "name": "delivery_date",
+              "type": "string",
+              "value": "={{ $json.delivery_date }}"
+            },
+            {
+              "id": "a4",
+              "name": "amount",
+              "type": "number",
+              "value": "={{ $json.amount }}"
+            },
+            {
+              "id": "a5",
+              "name": "status",
+              "type": "string",
+              "value": "={{ $json.status }}"
+            },
+            {
+              "id": "a6",
+              "name": "ingested_at",
+              "type": "string",
+              "value": "={{ $json.ingested_at }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ae110288-5421-435e-8388-42030d9212f9",
+      "name": "Prepare CSV Columns",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -3088,
+        1120
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Parse CSV to JSON": {
+      "main": [
+        [
+          {
+            "node": "Clean & Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Has Valid Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Valid Rows?": {
+      "main": [
+        [
+          {
+            "node": "Load to Postgres",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CSV Columns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse CSV to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Cleaned Data to CSV": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CSV Columns": {
+      "main": [
+        [
+          {
+            "node": "Convert Cleaned Data to CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "26ed2190-ec66-4bf7-b9a4-0163fea5464f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "nodeGroups": [],
+  "id": "lj2OukitgaMWvHwg",
+  "tags": []
+}
