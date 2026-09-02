@@ -8,15 +8,17 @@ The pipeline flows from Gmail → CSV parsing → Python cleaning/validation →
 
 ### Workflow diagram
 
-[![CSV cleaning ETL pipeline architecture](https://raw.githubusercontent.com/SANSKAR500/csv-cleaning-etl-pipeline-n8n/main/assets/pipeline-animated.svg)](https://github.com/SANSKAR500/csv-cleaning-etl-pipeline-n8n/blob/main/assets/pipeline-animated.svg)
+![CSV cleaning ETL pipeline architecture](./assets/pipeline-animated.svg)
 
-> **GitHub note:** GitHub README pages do not execute local HTML/JavaScript. The diagram above is displayed directly from the repository's raw SVG asset. The interactive HTML remains available as a separate file that you can download or open locally.
+**[View the pipeline SVG](./assets/pipeline-animated.svg)**
+
+> The diagram is embedded directly from the repository, so GitHub can render it in this README. The SVG also contains an animated flow indicator.
 
 ### Interactive version
 
-**[Open / download the interactive pipeline HTML](https://github.com/SANSKAR500/csv-cleaning-etl-pipeline-n8n/blob/main/assets/interactive-pipeline.html)**
+**[Open the interactive pipeline](./assets/interactive-pipeline.html)**
 
-The interactive page supports clickable workflow nodes and explanatory details. To use the interactions, open the downloaded HTML file in a browser; GitHub's file viewer will show the source code rather than execute it.
+The HTML version contains clickable workflow nodes with explanations. **GitHub's normal file viewer shows HTML source code instead of executing JavaScript.** To use the interactive version, click the file above and use GitHub's **Download raw file** option, then open the downloaded `.html` file in Chrome/Edge/Firefox.
 
 ### Text version
 
@@ -92,8 +94,8 @@ CREATE TABLE IF NOT EXISTS deliveries_clean (
 
 ```text
 /assets/
-  pipeline-animated.svg
-  interactive-pipeline.html
+  pipeline-animated.svg       ← GitHub-renderable animated architecture
+  interactive-pipeline.html  ← interactive browser version
 
 README.md
 ```
